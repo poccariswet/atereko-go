@@ -2,34 +2,35 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os/exec"
 )
 
-type ffmpeg struct {
+type FFmpeg struct {
 	*exec.Cmd
 }
 
-func (f *ffmpeg) setArgs(args ...string) {
+func (f *FFmpeg) setArgs(args ...string) {
 	f.Args = append(f.Args, args...)
 }
 
-func (f *ffmpeg) setDir(dir string) {
+func (f *FFmpeg) setDir(dir string) {
 	f.Dir = dir
 }
 
-func (f *ffmpeg) run(output string) error {
+func (f *FFmpeg) run(output string) error {
 	f.setArgs(output)
 	return f.Run()
 }
 
-func newffmpeg(ctx context.Context) (*ffmpeg, error) {
+func newFFmpeg(ctx context.Context) (*FFmpeg, error) {
 	cmdPath, err := exec.LookPath("ffmpeg")
 	if err != nil {
 		return nil, err
 	}
 
-	return &ffmpeg{exec.CommandContext(
+	return &FFmpeg{exec.CommandContext(
 		ctx,
 		cmdPath,
 	)}, nil
@@ -44,22 +45,34 @@ func format_hhmmss(target_seconds int) string {
 	return fmt.Sprintf("%02d:%02d:%02d", hour, minutes, seconds)
 }
 
+var (
+	inputVideo string
+	inputAudio string
+	inputTime  int
+	output     string
+)
+
+func init() {
+	flag.StringVar(&inputVideo, "iv", "sample/girl_shout.mp4", "input video path")
+	flag.StringVar(&inputAudio, "ia", "sample/shout.mp3", "input audio path")
+	flag.IntVar(&inputTime, "it", 8, "input play time")
+	flag.StringVar(&output, "o", "output.mp4", "output video path like ` -o output.mp4`")
+	flag.Parse()
+}
+
 func main() {
 	ctx := context.Background()
 
-	inputTime := format_hhmmss(10)
-	output := "sample.mp4"
-
-	f, err := newffmpeg(ctx)
+	f, err := newFFmpeg(ctx)
 	if err != nil {
 		panic(err)
 	}
 
 	f.setArgs(
-		"-i", "sample/girl_shout.mp4",
-		"-itsoffset", inputTime, "-i",
-		"sample/shout.mp3", "-c:v",
-		"copy", "-map", "0:v:0", "-map", "1:a:0",
+		"-i", inputVideo,
+		"-itsoffset", format_hhmmss(inputTime),
+		"-i", inputAudio,
+		"-c:v", "copy", "-map", "0:v:0", "-map", "1:a:0",
 	)
 
 	f.run(output)
